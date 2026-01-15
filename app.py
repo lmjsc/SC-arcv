@@ -9,6 +9,21 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Archive", layout="centered")
 
+# 버튼 스타일을 위한 CSS 추가
+st.markdown("""
+    <style>
+    div[data-testid="column"] {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .stButton button {
+        width: 100%;
+        border-radius: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 def get_data():
     img_data = []
     try:
@@ -56,15 +71,19 @@ if state.get("callback") == "dateClick":
         current_idx = st.session_state[f"idx_{selected_date}"]
         total_count = len(filtered_imgs)
 
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col1:
+        # [핵심] gap을 'small'로 설정하고 비율을 조정해서 가로로 한 줄 배치
+        cols = st.columns([1, 1, 1], gap="small")
+        
+        with cols[0]:
             if st.button("⬅️", key="prev"):
                 st.session_state[f"idx_{selected_date}"] = (current_idx - 1) % total_count
                 st.rerun()
-        with col2:
-            # 여기 unsafe_allow_html=True 로 수정했습니다!
-            st.markdown(f"<p style='text-align: center; padding-top: 10px;'><b>{current_idx + 1} / {total_count}</b></p>", unsafe_allow_html=True)
-        with col3:
+        
+        with cols[1]:
+            # 중앙에 장수 표시 (HTML로 세부 위치 조정)
+            st.markdown(f"<div style='text-align: center; line-height: 40px;'><b>{current_idx + 1} / {total_count}</b></div>", unsafe_allow_html=True)
+            
+        with cols[2]:
             if st.button("➡️", key="next"):
                 st.session_state[f"idx_{selected_date}"] = (current_idx + 1) % total_count
                 st.rerun()
