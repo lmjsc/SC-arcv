@@ -1,3 +1,4 @@
 streamlit
+notion-client
+streamlit-calendar
 
-notion-client==2.0.0
