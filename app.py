@@ -14,20 +14,24 @@ st.set_page_config(page_title="Sungchan Archive 🦌", page_icon="🦌", layout=
 # [보안] 검색 엔진 수집 차단
 st.markdown('<head><meta name="robots" content="noindex, nofollow"></head>', unsafe_allow_html=True)
 
-# [디자인] 버튼 시인성 강화 및 레이아웃 수정
+# [디자인] 버튼 간격 및 시인성 정밀 조정
 st.markdown("""
     <style>
     .stApp { background-color: #1a1b26; color: #a9b1d6; }
     [data-testid="stSidebar"] { background-color: #1f2335 !important; border-right: 1px solid #414868; }
     [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #ffffff !important; }
     
-    /* 사이드바 착장 검색 버튼 스타일 - 흰색 배경/글씨 겹침 방지 */
+    /* 사이드바 버튼 촘촘하게 만들기 */
     [data-testid="stSidebar"] .stButton button {
         width: 100%;
+        padding: 4px 8px !important;
+        min-height: 32px !important;
+        height: 32px !important;
         background-color: #24283b !important; 
         color: #7aa2f7 !important; 
         border: 1px solid #7aa2f7 !important;
-        font-weight: bold;
+        font-size: 13px !important;
+        margin-bottom: -10px !important; /* 버튼 사이 세로 간격 축소 */
     }
     [data-testid="stSidebar"] .stButton button:hover {
         background-color: #7aa2f7 !important;
@@ -35,7 +39,7 @@ st.markdown("""
     }
     
     /* 이미지 스타일 */
-    [data-testid="stImage"] img { border-radius: 15px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; transition: 0.3s; }
+    [data-testid="stImage"] img { border-radius: 12px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; transition: 0.3s; }
     [data-testid="stImage"] img:hover { transform: scale(1.02); border-color: #7aa2f7; }
     </style>
     """, unsafe_allow_html=True)
@@ -92,13 +96,14 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("🔍 **Quick Look**")
+    # 버튼 간격을 좁히기 위해 columns의 gap을 제거하거나 조절
     c1, c2 = st.columns(2)
     with c1:
         if st.button("#안경"): st.query_params["search"] = "안경"
         if st.button("#공항"): st.query_params["search"] = "공항"
     with c2:
         if st.button("#셀카"): st.query_params["search"] = "셀카"
-        if st.button("#무대"): st.query_params["search"] = "무대"
+        if st.button("#공연"): st.query_params["search"] = "공연" # 무대 -> 공연 수정
     
     st.markdown("---")
     years = sorted(list(set([d['date'].split('-')[0] for d in gallery_data if d['date'] != "날짜미상"])), reverse=True)
@@ -107,13 +112,13 @@ with st.sidebar:
     search_query = st.text_input("직접 검색", value=st.query_params.get("search", "")).lower()
     show_only_star = st.checkbox("⭐ Favorite SC")
 
-    # 새로고침 버튼을 사이드바 하단에 배치
-    st.markdown("<br><br><br>", unsafe_allow_html=True) # 공백 추가
+    # 새로고침 버튼 하단 배치
+    st.markdown("<br>" * 10, unsafe_allow_html=True) 
     if st.button("🔄"):
         st.cache_data.clear()
         st.rerun()
 
-# 필터링 및 메인 화면 (기존 로직 유지)
+# 필터링 및 메인 화면 출력 (기존 로직 동일)
 filtered_gallery = gallery_data
 if show_only_star: filtered_gallery = [d for d in filtered_gallery if "⭐" in d['tags']]
 if sel_year != "전체": filtered_gallery = [d for d in filtered_gallery if d['date'].startswith(sel_year)]
