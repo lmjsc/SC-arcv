@@ -26,14 +26,13 @@ st.markdown("""
     [data-testid="stImage"] img { border-radius: 12px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; transition: 0.2s; }
     [data-testid="stImage"] img:hover { transform: scale(1.03); border-color: #7aa2f7; }
     
-    /* 사진 달력(Recap) 전용 스타일: 날짜 칸에 사진이 꽉 차게 */
+    /* 사진 달력 전용 스타일: 날짜 칸을 사진으로 가득 채움 */
     .fc-event.photo-event {
         background-size: cover !important;
         background-position: center !important;
-        height: 70px !important;
-        border: none !important;
-        border-radius: 8px !important;
-        margin: 2px !important;
+        height: 80px !important;
+        border: 1px solid #414868 !important;
+        border-radius: 10px !important;
     }
     .fc-event.photo-event .fc-event-title { display: none; }
     </style>
@@ -41,7 +40,7 @@ st.markdown("""
 
 @st.cache_data(ttl=600)
 def get_all_data():
-    # 갤러리 데이터 로드
+    # 갤러리 데이터
     res_g = notion.databases.query(database_id=GALLERY_DB_ID).get("results")
     g_data = []
     for page in res_g:
@@ -56,7 +55,7 @@ def get_all_data():
                 url = block["image"].get('file', {}).get('url') or block["image"].get('external', {}).get('url')
                 if url: g_data.append({"url": url, "date": date, "tags": tags})
     
-    # 스케줄 데이터 로드
+    # 스케줄 데이터
     res_s = notion.databases.query(database_id=SCHEDULE_DB_ID).get("results")
     s_events = []
     for page in res_s:
@@ -77,11 +76,10 @@ def get_all_data():
 
 gallery_data, schedule_events = get_all_data()
 
-# [수정] 사이드바 메뉴 순서 변경
+# [수정] 사이드바 메뉴 3개로 분리 및 순서 조정
 with st.sidebar:
     st.title("🦌 Sungchan Menu")
-    # 스케줄을 0번(첫 번째)으로 배치
-    menu = st.radio("이동할 페이지", ["📅 스케줄 및 정산", "🖼️ 사진 갤러리"])
+    menu = st.radio("이동할 페이지", ["📅 스케줄 달력", "📊 월말 정산 달력", "🖼️ 사진 갤러리"])
     st.markdown("---")
     
     # 공통 필터
@@ -97,20 +95,19 @@ if show_only_star:
 if sel_year != "전체":
     filtered_gallery = [d for d in filtered_gallery if d['date'].startswith(sel_year)]
 
-# --- 페이지 1: 스케줄 및 정산 달력 (통합) ---
-if menu == "📅 스케줄 및 정산":
+# --- 페이지 1: 스케줄 달력 ---
+if menu == "📅 스케줄 달력":
     st.title("Sungchan Schedule 🗓️")
-    sched_state = calendar(events=schedule_events, options={"contentHeight": 500, "initialView": "dayGridMonth", "locale": "en"}, key="sched_cal")
-    
-    # 클릭 시 사진 갤러리로 이동
+    sched_state = calendar(events=schedule_events, options={"contentHeight": 650, "initialView": "dayGridMonth", "locale": "en"})
     if sched_state.get("callback") == "eventClick":
         st.query_params["date"] = sched_state["eventClick"]["event"]["extendedProps"]["date"]
         st.rerun()
 
-    st.markdown("---")
-    
-    # 하단: 월말 정산 사진 달력
+# --- 페이지 2: 월말 정산 달력 ---
+elif menu == "📊 월말 정산 달력":
     st.title("Monthly Photo Recap 🎞️")
+    st.info("각 날짜의 대표 사진으로 한 달을 정산해보세요!")
+    
     photo_events = []
     seen_dates = set()
     for item in filtered_gallery:
@@ -118,25 +115,25 @@ if menu == "📅 스케줄 및 정산":
             photo_events.append({
                 "start": item['date'],
                 "title": "photo",
-                "className": "photo-event", # CSS 적용을 위한 클래스
+                "display": "block",
                 "backgroundColor": "transparent",
                 "borderColor": "transparent",
-                # [중요] 배경 이미지로 사진 주입
-                "backgroundImage": f"url('{item['url']}')"
+                "className": "photo-event",
+                "extendedProps": {"imageUrl": item['url']}
             })
             seen_dates.add(item['date'])
     
-    # 사진 달력 스타일 강제 주입
-    custom_img_css = "<style>"
-    for i, ev in enumerate(photo_events):
-        custom_img_css += f".fc-event[style*='{ev['start']}'] {{ background-image: {ev['backgroundImage']} !important; }}"
-    custom_img_css += "</style>"
-    st.markdown(custom_img_css, unsafe_allow_html=True)
+    # 사진을 달력 이벤트 배경으로 주입하는 커스텀 스크립트 대응 CSS
+    custom_css = "<style>"
+    for ev in photo_events:
+        url = ev['extendedProps']['imageUrl']
+        custom_css += f".fc-daygrid-event[style*='{ev['start']}'] {{ background-image: url('{url}') !important; }}"
+    custom_css += "</style>"
+    st.markdown(custom_css, unsafe_allow_html=True)
 
-    calendar(events=photo_events, options={"contentHeight": 600, "initialView": "dayGridMonth", "locale": "en"}, key="photo_cal")
-    st.info("💡 위는 스케줄, 아래는 그날의 사진입니다. 사진 달력에 사진이 안 보인다면 잠시 기다려 주세요.")
+    calendar(events=photo_events, options={"contentHeight": 700, "initialView": "dayGridMonth", "locale": "en"})
 
-# --- 페이지 2: 사진 갤러리 ---
+# --- 페이지 3: 사진 갤러리 ---
 else:
     st.title("Archive (  •  ³  •  )")
     all_tags = sorted(list(set([t for item in filtered_gallery for t in item['tags']])))
@@ -158,7 +155,7 @@ else:
 
     if active_date:
         display_data = [d for d in display_data if d['date'] == active_date]
-        st.subheader(f"📅 {active_date} 사진 ({len(display_data)}장)")
+        st.subheader(f"📅 {active_date} 결과 ({len(display_data)}장)")
     else:
         st.subheader(f"🖼️ {selected_tag} ({len(display_data)}장)")
 
