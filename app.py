@@ -9,8 +9,28 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Archive", layout="centered")
 
-# [개선] 데이터를 10분 동안 기억해두는 기능 추가 (로딩 속도 향상)
-@st.cache_data(ttl=600) 
+# [핵심] 버튼을 양사이드로 밀어내는 커스텀 CSS
+st.markdown("""
+    <style>
+    /* 버튼 컨테이너를 한 줄로 고정하고 양 끝으로 배치 */
+    .button-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+    /* 버튼 스타일 조정 */
+    .stButton button {
+        width: 60px !important;
+        height: 40px !important;
+        padding: 0px !important;
+        border-radius: 8px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+@st.cache_data(ttl=600)
 def get_data():
     img_data = []
     try:
@@ -21,7 +41,6 @@ def get_data():
             date_info = props.get('날짜', {}).get('date')
             date_str = date_info.get('start') if date_info else None
             
-            # 본문 사진 가져오기
             blocks = notion.blocks.children.list(block_id=page_id).get("results")
             for block in blocks:
                 if block["type"] == "image":
@@ -34,8 +53,7 @@ def get_data():
 
 st.title("Archive")
 
-# 로딩 중일 때 메시지 표시
-with st.spinner('성찬이 사진 불러오는 중...'):
+with st.spinner('사진 불러오는 중...'):
     data = get_data()
 
 calendar_options = {
@@ -62,26 +80,25 @@ if state.get("callback") == "dateClick":
         current_idx = st.session_state[f"idx_{selected_date}"]
         total_count = len(filtered_imgs)
 
-        # [핵심] gap을 'small'로 설정하고 비율을 조정해서 가로로 한 줄 배치
-        cols = st.columns([1, 1, 1], gap="small")
+        # HTML과 Streamlit 버튼을 조합하여 양사이드 배치 구현
+        col_l, col_m, col_r = st.columns([1, 2, 1])
         
-        with cols[0]:
+        with col_l:
             if st.button("⬅️", key="prev"):
                 st.session_state[f"idx_{selected_date}"] = (current_idx - 1) % total_count
                 st.rerun()
         
-        with cols[1]:
-            # 중앙에 장수 표시 (HTML로 세부 위치 조정)
-            st.markdown(f"<div style='text-align: center; line-height: 40px;'><b>{current_idx + 1} / {total_count}</b></div>", unsafe_allow_html=True)
+        with col_m:
+            st.markdown(f"<p style='text-align: center; font-size: 18px; margin-top: 5px;'><b>{current_idx + 1} / {total_count}</b></p>", unsafe_allow_html=True)
             
-        with cols[2]:
+        with col_r:
+            # 버튼이 오른쪽 끝으로 붙도록 배치
+            st.markdown("<div style='text-align: right;'>", unsafe_allow_html=True)
             if st.button("➡️", key="next"):
                 st.session_state[f"idx_{selected_date}"] = (current_idx + 1) % total_count
                 st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
         st.image(filtered_imgs[st.session_state[f"idx_{selected_date}"]], use_container_width=True)
     else:
         st.info(f"{selected_date} 사진이 없습니다.")
-else:
-    st.info("날짜를 선택하세요!")
-
