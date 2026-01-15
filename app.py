@@ -69,7 +69,7 @@ with st.spinner('데이터 동기화 중...'):
 
 # 사이드바 필터 (스케줄 + tag 통합 목록)
 with st.sidebar:
-    st.header("🔍 통합 검색")
+    st.header("🔍 Search Sungchan")
     # 모든 사진에 붙은 태그들을 모아서 정렬
     unique_tags = sorted(list(set([tag for item in data for tag in item['all_tags']])))
     selected_tag = st.selectbox("🏷️ 태그/스케줄 선택", ["전체 보기"] + unique_tags)
@@ -79,7 +79,6 @@ calendar_options = {
     "contentHeight": 350,
     "selectable": True,
     "headerToolbar": {"left": "prev,next", "center": "title", "right": "today"},
-    "locale": "ko"
 }
 state = calendar(options=calendar_options)
 
@@ -107,3 +106,4 @@ if display_data:
             st.image(item['url'], caption=item['date'], use_container_width=True)
 else:
     st.warning("찾으시는 조건의 사진이 없습니다.")
+
