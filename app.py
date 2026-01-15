@@ -9,38 +9,49 @@ GALLERY_DB_ID = st.secrets["DATABASE_ID"]
 SCHEDULE_DB_ID = st.secrets["SCHEDULE_DATABASE_ID"]
 notion = Client(auth=NOTION_TOKEN)
 
-# 파비콘 및 타이틀 설정
 st.set_page_config(page_title="Sungchan Archive 🦌", page_icon="🦌", layout="wide")
 
-# [디자인] 예시 이미지처럼 고급스러운 다크 테마 적용
+# [디자인] 사이드바 글자 시인성 강화 및 다크 테마 CSS
 st.markdown("""
     <style>
-    /* 배경색 및 기본 글자색 */
+    /* 전체 배경 및 기본 텍스트 */
     .stApp { background-color: #1a1b26; color: #a9b1d6; }
     
-    /* 사이드바 디자인 */
-    [data-testid="stSidebar"] { background-color: #1f2335 !important; border-right: 1px solid #414868; }
+    /* 사이드바 글자색 및 배경색 강제 설정 */
+    [data-testid="stSidebar"] {
+        background-color: #1f2335 !important;
+        border-right: 1px solid #414868;
+    }
+    /* 사이드바 내 모든 텍스트를 밝은 회색/흰색으로 */
+    [data-testid="stSidebar"] .stText, 
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] .stMarkdown p,
+    [data-testid="stSidebar"] h2 {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
     
-    /* 제목 및 텍스트 강조 */
-    h1, h2, h3 { color: #7aa2f7 !important; font-family: 'Noto Sans KR', sans-serif; }
-    
-    /* 이미지 카드 스타일 (예시 이미지 느낌) */
+    /* 입력창 내부 텍스트 색상 */
+    [data-testid="stSidebar"] input {
+        color: #ffffff !important;
+        background-color: #24283b !important;
+    }
+
+    /* 이미지 카드 디자인 */
     [data-testid="stImage"] img { 
         border-radius: 15px; 
         aspect-ratio: 1/1; 
         object-fit: cover; 
         border: 2px solid #414868; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         transition: 0.3s ease; 
     }
     [data-testid="stImage"] img:hover { transform: translateY(-5px); border-color: #7aa2f7; }
     
-    /* 로딩 애니메이션 사슴 색상 */
+    /* 로딩 스피너 색상 */
     .stSpinner > div > div { border-top-color: #7aa2f7 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 데이터 로딩 시 캐시를 무효화하기 쉽도록 ttl 조절 (600초 -> 300초로 단축)
 @st.cache_data(ttl=300)
 def get_all_data():
     res_g = notion.databases.query(database_id=GALLERY_DB_ID).get("results")
@@ -70,19 +81,21 @@ def get_all_data():
             s_events.append({"title": title, "start": date_info.get('start'), "end": date_info.get('end'), "color": "#7aa2f7", "extendedProps": {"date": date_info.get('start')}})
     return g_data, s_events
 
-# 데이터 불러올 때 사슴 로딩 표시
-with st.spinner('🦌 성찬이 데이터 동기화 중... 잠시만 기다려주세요!'):
+# 로딩 시 사슴 메시지 표시
+with st.spinner('🦌 성찬이 데이터 동기화 중...'):
     gallery_data, schedule_events = get_all_data()
 
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center;'>🦌 Menu</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: white;'>🦌 Sungchan Menu</h2>", unsafe_allow_html=True)
     menu = st.radio("이동할 페이지", ["📅 스케줄 달력", "🖼️ 사진 갤러리"])
     st.markdown("---")
-    search_query = st.text_input("🔍 착장 검색 (안경, 청자켓 등)", "").lower()
-    sel_year = st.selectbox("📅 연도 선택", ["전체"] + sorted(list(set([d['date'].split('-')[0] for d in gallery_data if d['date'] != "날짜미상"])), reverse=True))
+    search_query = st.text_input("🔍 착장 검색 (안경, 공항 등)", "").lower()
+    
+    years = sorted(list(set([d['date'].split('-')[0] for d in gallery_data if d['date'] != "날짜미상"])), reverse=True)
+    sel_year = st.selectbox("📅 연도 선택", ["전체"] + years)
     show_only_star = st.checkbox("⭐ 레전드만 보기")
 
-# 필터링
+# 필터링 로직
 filtered_gallery = gallery_data
 if show_only_star: filtered_gallery = [d for d in filtered_gallery if "⭐" in d['tags']]
 if sel_year != "전체": filtered_gallery = [d for d in filtered_gallery if d['date'].startswith(sel_year)]
