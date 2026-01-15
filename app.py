@@ -8,40 +8,25 @@ NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
 DATABASE_ID = st.secrets["DATABASE_ID"]
 notion = Client(auth=NOTION_TOKEN)
 
-# 페이지 설정
 st.set_page_config(page_title="Archive", layout="wide")
 
-# [디자인] 글자색과 배경색 대비를 명확하게 수정
+# [디자인] 달력 및 전체 톤앤매너 통합 CSS
 st.markdown("""
     <style>
-    /* 기본 배경: 어두운 네이비 / 글자: 연한 회색(밝음) */
-    .stApp {
-        background-color: #1a1b26;
-        color: #a9b1d6;
-    }
-    /* 제목: 하늘색 */
-    h1, h2, h3 {
-        color: #7aa2f7 !important;
-    }
-    /* 사이드바 글자색 고정 */
-    [data-testid="stSidebar"] {
-        background-color: #24283b;
-    }
-    [data-testid="stSidebar"] .css-17l2qt2 {
-        color: #cfc9c2;
-    }
+    .stApp { background-color: #1a1b26; color: #a9b1d6; }
+    h1, h2, h3 { color: #7aa2f7 !important; }
+    iframe { background-color: #24283b !important; border-radius: 15px !important; border: 1px solid #414868 !important; }
+    
     /* 이미지 카드 스타일 */
     [data-testid="stImage"] img {
         border-radius: 12px;
         aspect-ratio: 1/1;
         object-fit: cover;
         border: 2px solid #414868;
+        transition: transform 0.2s;
     }
-    /* 캡션 글자 잘 보이게 설정 */
-    [data-testid="stImageCaption"] {
-        color: #9ece6a !important;
-        font-weight: bold;
-    }
+    [data-testid="stImage"] img:hover { transform: scale(1.03); border-color: #7aa2f7; }
+    [data-testid="stImageCaption"] { color: #9ece6a !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -55,56 +40,70 @@ def get_data():
             props = page.get('properties', {})
             date_str = props.get('날짜', {}).get('date', {}).get('start') or "날짜미상"
             
-            # [수정] 노션 속성명을 '스케줄'로 변경
-            schedule_info = props.get('스케줄', {}).get('multi_select', [])
-            schedules = [s['name'] for s in schedule_info]
+            # [수정] '스케줄'과 'tag' 두 곳에서 태그 데이터 수집
+            sched_info = props.get('스케줄', {}).get('multi_select', [])
+            tag_info = props.get('tag', {}).get('multi_select', [])
+            
+            # 두 속성의 이름을 합치고 중복 제거
+            combined_tags = list(set([s['name'] for s in sched_info] + [t['name'] for t in tag_info]))
             
             blocks = notion.blocks.children.list(block_id=page_id).get("results")
             for block in blocks:
                 if block["type"] == "image":
                     img_block = block["image"]
                     url = img_block.get('file', {}).get('url') or img_block.get('external', {}).get('url')
-                    if url: img_data.append({"url": url, "date": date_str, "schedules": schedules})
+                    if url: 
+                        img_data.append({
+                            "url": url, 
+                            "date": date_str, 
+                            "all_tags": combined_tags
+                        })
     except Exception as e:
         st.error(f"데이터 로드 실패: {e}")
     return img_data
 
 st.title("Archive (  •  ³  •  )")
 
-with st.spinner('로딩 중...'):
+with st.spinner('데이터 동기화 중...'):
     data = get_data()
 
-# 사이드바: 필터 기능
+# 사이드바 필터 (스케줄 + tag 통합 목록)
 with st.sidebar:
-    st.header("🔍 Filter")
-    all_schedules = sorted(list(set([s for item in data for s in item['schedules']])))
-    selected_schedule = st.selectbox("📅 스케줄별 보기", ["전체"] + all_schedules)
+    st.header("🔍 통합 검색")
+    # 모든 사진에 붙은 태그들을 모아서 정렬
+    unique_tags = sorted(list(set([tag for item in data for tag in item['all_tags']])))
+    selected_tag = st.selectbox("🏷️ 태그/스케줄 선택", ["전체 보기"] + unique_tags)
 
-# 1. 달력 필터
-state = calendar(options={"contentHeight": 350, "selectable": True})
+# 2. 달력 표시
+calendar_options = {
+    "contentHeight": 350,
+    "selectable": True,
+    "headerToolbar": {"left": "prev,next", "center": "title", "right": "today"},
+    "locale": "ko"
+}
+state = calendar(options=calendar_options)
 
-# 2. 사진 표시 로직
+# 3. 사진 필터링 로직
 display_data = data
 
-# 스케줄 필터 적용
-if selected_schedule != "전체":
-    display_data = [d for d in display_data if selected_schedule in d['schedules']]
+# 태그 필터링 (스케줄이나 tag 중 어디에든 포함되어 있으면 출력)
+if selected_tag != "전체 보기":
+    display_data = [d for d in display_data if selected_tag in d['all_tags']]
 
-# 날짜 필터 적용
-title_text = f"🖼️ {selected_schedule} 사진"
+# 날짜 필터링
+title_text = f"🖼️ {selected_tag}"
 if state.get("callback") == "dateClick":
     click_date = (datetime.strptime(state["dateClick"]["date"].split("T")[0], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     display_data = [d for d in display_data if d['date'] == click_date]
-    title_text = f"📅 {click_date} 사진"
+    title_text = f"📅 {click_date} 결과"
 
 st.markdown(f"### {title_text} ({len(display_data)}장)")
 
-# 3. 바둑판 그리드
+# 4. 바둑판 출력
 if display_data:
     cols = st.columns(3)
     for idx, item in enumerate(display_data):
         with cols[idx % 3]:
-            # 사진 아래 날짜를 캡션으로 표시
             st.image(item['url'], caption=item['date'], use_container_width=True)
 else:
-    st.warning("해당 조건의 사진이 없습니다.")
+    st.warning("찾으시는 조건의 사진이 없습니다.")
