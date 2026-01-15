@@ -14,20 +14,32 @@ st.set_page_config(page_title="Sungchan Archive 🦌", page_icon="🦌", layout=
 # [보안] 검색 엔진 수집 차단
 st.markdown('<head><meta name="robots" content="noindex, nofollow"></head>', unsafe_allow_html=True)
 
-# [디자인] 
+# [디자인] 버튼 시인성 강화 및 레이아웃 수정
 st.markdown("""
     <style>
     .stApp { background-color: #1a1b26; color: #a9b1d6; }
     [data-testid="stSidebar"] { background-color: #1f2335 !important; border-right: 1px solid #414868; }
     [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #ffffff !important; }
-    /* 새로고침 버튼 스타일 */
-    .refresh-btn { display: flex; justify-content: flex-end; margin-bottom: -40px; }
+    
+    /* 사이드바 착장 검색 버튼 스타일 - 흰색 배경/글씨 겹침 방지 */
+    [data-testid="stSidebar"] .stButton button {
+        width: 100%;
+        background-color: #24283b !important; 
+        color: #7aa2f7 !important; 
+        border: 1px solid #7aa2f7 !important;
+        font-weight: bold;
+    }
+    [data-testid="stSidebar"] .stButton button:hover {
+        background-color: #7aa2f7 !important;
+        color: #1a1b26 !important;
+    }
+    
+    /* 이미지 스타일 */
     [data-testid="stImage"] img { border-radius: 15px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; transition: 0.3s; }
     [data-testid="stImage"] img:hover { transform: scale(1.02); border-color: #7aa2f7; }
     </style>
     """, unsafe_allow_html=True)
 
-# [데이터 로드] 
 @st.cache_data(ttl=60)
 def get_all_data():
     g_data = []
@@ -76,16 +88,9 @@ gallery_data, schedule_events = get_all_data()
 
 # 사이드바 구성
 with st.sidebar:
-    # 제목과 새로고침 버튼을 한 줄에 배치 느낌으로
-    cols_top = st.columns([0.8, 0.2])
-    with cols_top[0]:
-        st.markdown("### 🦌 Sungchan Archive")
-    with cols_top[1]:
-        if st.button("🔄"):
-            st.cache_data.clear()
-            st.rerun()
-    
+    st.markdown("### 🦌 Sungchan Archive")
     st.markdown("---")
+    
     st.markdown("🔍 **Quick Look**")
     c1, c2 = st.columns(2)
     with c1:
@@ -96,23 +101,25 @@ with st.sidebar:
         if st.button("#무대"): st.query_params["search"] = "무대"
     
     st.markdown("---")
-    # 연도 선택 필터 추가
     years = sorted(list(set([d['date'].split('-')[0] for d in gallery_data if d['date'] != "날짜미상"])), reverse=True)
     sel_year = st.selectbox("📅 연도 선택", ["전체"] + years)
     
     search_query = st.text_input("직접 검색", value=st.query_params.get("search", "")).lower()
     show_only_star = st.checkbox("⭐ Favorite SC")
 
-# 필터링 로직
+    # 새로고침 버튼을 사이드바 하단에 배치
+    st.markdown("<br><br><br>", unsafe_allow_html=True) # 공백 추가
+    if st.button("🔄"):
+        st.cache_data.clear()
+        st.rerun()
+
+# 필터링 및 메인 화면 (기존 로직 유지)
 filtered_gallery = gallery_data
 if show_only_star: filtered_gallery = [d for d in filtered_gallery if "⭐" in d['tags']]
 if sel_year != "전체": filtered_gallery = [d for d in filtered_gallery if d['date'].startswith(sel_year)]
 if search_query: filtered_gallery = [d for d in filtered_gallery if search_query in d['search_text']]
 
-# 메인 화면
 st.title("Archive (  •  ³  •  )")
-
-# 상단 달력
 cal_state = calendar(events=schedule_events, options={"contentHeight": 350, "selectable": True, "locale": "en"})
 
 active_date = st.query_params.get("date")
@@ -131,7 +138,6 @@ else:
     display_data = filtered_gallery
     st.subheader(f"🖼️ 결과 ({len(display_data)}장)")
 
-# 사진 그리드
 if not display_data:
     st.info("해당 조건에 맞는 사진이 없습니다. 🦌")
 else:
