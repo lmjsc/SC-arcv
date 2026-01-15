@@ -10,28 +10,38 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Archive", layout="centered")
 
-# [핵심] 두 줄 레이아웃 전용 스타일
+# [핵심] 중앙 집중형 레이아웃 CSS
 st.markdown("""
     <style>
-    /* 버튼을 가로로 꽉 차게 */
+    /* 버튼과 숫자를 감싸는 상자를 중앙으로 모음 */
+    .nav-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        margin: 20px 0;
+    }
+    /* 버튼 크기 고정 및 텍스트 제거 대응 */
     .stButton button {
-        width: 100% !important;
-        height: 50px !important;
-        font-size: 20px !important;
+        width: 60px !important;
+        height: 45px !important;
         border-radius: 12px !important;
-        margin-bottom: 5px !important;
+        padding: 0 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
     }
     /* 숫자 텍스트 스타일 */
     .nav-text {
-        text-align: center;
-        font-weight: bold;
         font-size: 18px;
-        margin: 10px 0;
-        color: #555;
+        font-weight: bold;
+        min-width: 60px;
+        text-align: center;
     }
-    /* 간격 조정 */
-    [data-testid="column"] {
-        padding: 0 5px !important;
+    /* Streamlit 기본 컬럼 간격 무시 */
+    [data-testid="stHorizontalBlock"] {
+        justify-content: center !important;
+        gap: 10px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -75,21 +85,21 @@ if state.get("callback") == "dateClick":
         curr = st.session_state[f"idx_{selected_date}"]
         total = len(filtered_imgs)
 
-        # ⭐️ 1층: 이전/다음 버튼 (가로 2칸)
-        btn_col1, btn_col2 = st.columns(2)
-        with btn_col1:
-            if st.button("⬅️ 이전", key="p_btn"):
+        # ⭐️ 레이아웃: [ ⬅️ ]  1 / 30  [ ➡️ ] 형태로 중앙 정렬
+        # columns 비율을 조절하여 버튼들이 중앙으로 모이게 설정
+        c1, c2, c3, c4, c5 = st.columns([2, 1, 2, 1, 2])
+        
+        with c2:
+            if st.button("⬅️", key="p_btn"):
                 st.session_state[f"idx_{selected_date}"] = (curr - 1) % total
                 st.rerun()
-        with btn_col2:
-            if st.button("다음 ➡️", key="n_btn"):
+        with c3:
+            st.markdown(f"<div class='nav-text' style='line-height:45px;'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
+        with c4:
+            if st.button("➡️", key="n_btn"):
                 st.session_state[f"idx_{selected_date}"] = (curr + 1) % total
                 st.rerun()
 
-        # ⭐️ 2층: 숫자 표시 (단독 줄)
-        st.markdown(f"<div class='nav-text'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
-
-        # 사진 출력
         st.image(filtered_imgs[st.session_state[f"idx_{selected_date}"]], use_container_width=True)
     else:
         st.info(f"{selected_date} 사진이 없습니다.")
