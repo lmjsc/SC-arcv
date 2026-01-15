@@ -87,4 +87,9 @@ if state.get("callback") == "dateClick":
                 st.rerun()
 
         # ⭐️ 2층: 숫자 표시 (단독 줄)
-        st.markdown(f"<div class='nav-text'>{curr + 1} / {total
+        st.markdown(f"<div class='nav-text'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
+
+        # 사진 출력
+        st.image(filtered_imgs[st.session_state[f"idx_{selected_date}"]], use_container_width=True)
+    else:
+        st.info(f"{selected_date} 사진이 없습니다.")
