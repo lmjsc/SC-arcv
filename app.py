@@ -27,9 +27,10 @@ raw_results = get_images()
 if raw_results:
     img_urls = []
     for page in raw_results:
-        # 노션 DB의 속성 이름이 '사진'인지 꼭 확인해주세요!
+        # 수정 전: props.get('사진', {})
+        # 수정 후: props.get('img', {})
         props = page.get('properties', {})
-        photo_attr = props.get('사진', {})
+        photo_attr = props.get('img', {})  # <--- 이 부분을 'img'로 수정!
         files = photo_attr.get('files', [])
         
         if files:
@@ -58,3 +59,4 @@ if raw_results:
         st.warning("노션 DB에 '사진' 속성은 있는데, 안에 이미지가 올라와 있지 않아요!")
 else:
     st.info("노션에서 데이터를 가져오지 못했습니다. ID와 '연결 추가'를 다시 확인해주세요.")
+
