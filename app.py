@@ -11,19 +11,23 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Sungchan Archive 🦌", page_icon="🦌", layout="wide")
 
-# [디자인] 사이드바 시인성 강화
+# [디자인] 사이드바 시인성 및 다크 테마 CSS
 st.markdown("""
     <style>
     .stApp { background-color: #1a1b26; color: #a9b1d6; }
     [data-testid="stSidebar"] { background-color: #1f2335 !important; border-right: 1px solid #414868; }
-    [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #ffffff !important; }
-    [data-testid="stImage"] img { border-radius: 15px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; }
+    [data-testid="stSidebar"] .stText, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] h2, [data-testid="stSidebar"] span { color: #ffffff !important; font-weight: 500 !important; }
+    [data-testid="stSidebar"] .stTextInput input { color: #ffffff !important; background-color: #24283b !important; border: 1px solid #7aa2f7 !important; }
+    [data-testid="stImage"] img { border-radius: 15px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; transition: 0.3s ease; }
+    [data-testid="stImage"] img:hover { transform: translateY(-5px); border-color: #7aa2f7; }
+    iframe { background-color: #24283b !important; border-radius: 15px !important; }
     </style>
     """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=60) # 1분마다 자동 새로고침 체크
+# [데이터 로드] 캐시 60초 설정
+@st.cache_data(ttl=60)
 def get_all_data():
-    # 갤러리 데이터
     res_g = notion.databases.query(database_id=GALLERY_DB_ID).get("results")
     g_data = []
     for page in res_g:
@@ -34,28 +38,23 @@ def get_all_data():
         tags_list = [s['name'] for s in s_tags] + [t['name'] for t in t_tags]
         search_text = " ".join(tags_list).lower()
         
-        # --- 이미지 추출 로직 (본문 + 파일 열 둘다 체크) ---
         img_urls = []
-        
-        # 1. '파일과 미디어' 타입의 모든 열을 뒤져서 이미지 찾기
+        # 파일 열에서 추출
         for p_val in props.values():
             if p_val.get('type') == 'files':
                 for f in p_val.get('files', []):
                     url = f.get('file', {}).get('url') or f.get('external', {}).get('url')
                     if url: img_urls.append(url)
-        
-        # 2. 본문에 있는 이미지 찾기 (이미 위에서 찾았으면 생략 가능하지만 안전하게 추가)
+        # 본문 블록에서 추출
         blocks = notion.blocks.children.list(block_id=page['id']).get("results")
         for block in blocks:
             if block["type"] == "image":
                 url = block["image"].get('file', {}).get('url') or block["image"].get('external', {}).get('url')
                 if url: img_urls.append(url)
         
-        # 중복 제거 후 데이터 추가
         for final_url in list(set(img_urls)):
             g_data.append({"url": final_url, "date": date, "tags": tags_list, "search_text": search_text})
     
-    # 스케줄 데이터
     res_s = notion.databases.query(database_id=SCHEDULE_DB_ID).get("results")
     s_events = []
     for page in res_s:
@@ -66,25 +65,25 @@ def get_all_data():
         date_info = props.get('날짜', {}).get('date', {})
         if is_off and date_info:
             s_events.append({"title": title, "start": date_info.get('start'), "end": date_info.get('end'), "color": "#7aa2f7", "extendedProps": {"date": date_info.get('start')}})
-            
     return g_data, s_events
 
-with st.spinner('🦌 성찬이 데이터 불러오는 중...'):
+with st.spinner('🦌 성찬이 데이터 동기화 중...'):
     gallery_data, schedule_events = get_all_data()
 
+# 사이드바
 with st.sidebar:
-    st.markdown("## 🦌 Sungchan Menu")
+    st.markdown("<h2 style='text-align: center;'>🦌 Sungchan Menu</h2>", unsafe_allow_html=True)
     if st.button("🔄 데이터 강제 새로고침"):
         st.cache_data.clear()
         st.rerun()
     st.markdown("---")
     menu = st.radio("이동할 페이지", ["📅 스케줄 달력", "🖼️ 사진 갤러리"])
-    search_query = st.text_input("🔍 착장 검색", "").lower()
+    search_query = st.text_input("🔍 착장 검색 (안경, 공항 등)", "").lower()
     years = sorted(list(set([d['date'].split('-')[0] for d in gallery_data if d['date'] != "날짜미상"])), reverse=True)
     sel_year = st.selectbox("📅 연도 선택", ["전체"] + years)
     show_only_star = st.checkbox("⭐ 레전드만 보기")
 
-# 필터링 및 출력 (기존과 동일)
+# 공통 필터링
 filtered_gallery = gallery_data
 if show_only_star: filtered_gallery = [d for d in filtered_gallery if "⭐" in d['tags']]
 if sel_year != "전체": filtered_gallery = [d for d in filtered_gallery if d['date'].startswith(sel_year)]
@@ -92,10 +91,39 @@ if search_query: filtered_gallery = [d for d in filtered_gallery if search_query
 
 if menu == "📅 스케줄 달력":
     st.title("Sungchan Schedule 🗓️")
-    calendar(events=schedule_events, options={"contentHeight": 650, "initialView": "dayGridMonth", "locale": "en"})
+    sched_state = calendar(events=schedule_events, options={"contentHeight": 650, "initialView": "dayGridMonth", "locale": "en"})
+    if sched_state.get("callback") == "eventClick":
+        st.query_params["date"] = sched_state["eventClick"]["event"]["extendedProps"]["date"]
+        st.rerun()
+
 else:
     st.title("Archive (  •  ³  •  )")
-    cols = st.columns(3)
-    for idx, item in enumerate(filtered_gallery):
-        with cols[idx % 3]:
-            st.image(item['url'], caption=item['date'], use_container_width=True)
+    
+    # --- 갤러리 상단 날짜 선택 캘린더 복구 ---
+    query_date = st.query_params.get("date")
+    cal_state = calendar(options={"contentHeight": 350, "selectable": True, "locale": "en"})
+    
+    display_data = filtered_gallery
+    active_date = None
+    
+    if cal_state.get("callback") == "dateClick":
+        # 클릭한 날짜 가져오기 (시간차 보정 +1일)
+        active_date = (datetime.strptime(cal_state["dateClick"]["date"].split("T")[0], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        st.query_params.clear()
+    elif query_date:
+        active_date = query_date
+
+    if active_date:
+        display_data = [d for d in display_data if d['date'] == active_date]
+        st.subheader(f"📅 {active_date} 결과 ({len(display_data)}장)")
+    else:
+        st.subheader(f"🖼️ 전체 결과 ({len(display_data)}장)")
+
+    # 사진 그리드 출력
+    if not display_data:
+        st.info("해당 조건에 맞는 사진이 없습니다. 🦌")
+    else:
+        cols = st.columns(3)
+        for idx, item in enumerate(display_data):
+            with cols[idx % 3]:
+                st.image(item['url'], caption=item['date'], use_container_width=True)
