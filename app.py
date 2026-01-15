@@ -2,28 +2,46 @@ import streamlit as st
 from notion_client import Client
 from streamlit_calendar import calendar
 from datetime import datetime, timedelta
-import random
 
 # 1. 설정 및 노션 연결
 NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
 DATABASE_ID = st.secrets["DATABASE_ID"]
 notion = Client(auth=NOTION_TOKEN)
 
-# 페이지 설정 (다크모드 지향 디자인)
-st.set_page_config(page_title="Sungchan Archive", layout="wide")
+# 페이지 설정
+st.set_page_config(page_title="Archive", layout="wide")
 
-# [디자인] 파스텔 다크 모드 스타일 CSS
+# [디자인] 글자색과 배경색 대비를 명확하게 수정
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;500;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Noto+Sans+KR', sans-serif; background-color: #1e1e2e; color: #cdd6f4; }
-    .stApp { background: linear-gradient(135deg, #1e1e2e 0%, #181825 100%); }
-    [data-testid="stImage"] img { border-radius: 15px; transition: transform 0.3s ease; cursor: pointer; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #313244; }
-    [data-testid="stImage"] img:hover { transform: scale(1.05); border-color: #89b4fa; }
-    .main-title { font-size: 3rem; font-weight: 700; text-align: center; color: #89b4fa; margin-bottom: 0px; }
-    .sub-title { text-align: center; color: #9399b2; margin-bottom: 30px; }
-    div.stButton > button { width: 100%; border-radius: 12px; background-color: #313244; color: white; border: none; height: 50px; font-weight: bold; }
-    div.stButton > button:hover { background-color: #45475a; border: 1px solid #89b4fa; }
+    /* 기본 배경: 어두운 네이비 / 글자: 연한 회색(밝음) */
+    .stApp {
+        background-color: #1a1b26;
+        color: #a9b1d6;
+    }
+    /* 제목: 하늘색 */
+    h1, h2, h3 {
+        color: #7aa2f7 !important;
+    }
+    /* 사이드바 글자색 고정 */
+    [data-testid="stSidebar"] {
+        background-color: #24283b;
+    }
+    [data-testid="stSidebar"] .css-17l2qt2 {
+        color: #cfc9c2;
+    }
+    /* 이미지 카드 스타일 */
+    [data-testid="stImage"] img {
+        border-radius: 12px;
+        aspect-ratio: 1/1;
+        object-fit: cover;
+        border: 2px solid #414868;
+    }
+    /* 캡션 글자 잘 보이게 설정 */
+    [data-testid="stImageCaption"] {
+        color: #9ece6a !important;
+        font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -36,54 +54,44 @@ def get_data():
             page_id = page["id"]
             props = page.get('properties', {})
             date_str = props.get('날짜', {}).get('date', {}).get('start') or "날짜미상"
-            # 태그 가져오기
-            tag_info = props.get('태그', {}).get('multi_select', [])
-            tags = [t['name'] for t in tag_info]
+            
+            # [수정] 노션 속성명을 '스케줄'로 변경
+            schedule_info = props.get('스케줄', {}).get('multi_select', [])
+            schedules = [s['name'] for s in schedule_info]
             
             blocks = notion.blocks.children.list(block_id=page_id).get("results")
             for block in blocks:
                 if block["type"] == "image":
                     img_block = block["image"]
                     url = img_block.get('file', {}).get('url') or img_block.get('external', {}).get('url')
-                    if url: img_data.append({"url": url, "date": date_str, "tags": tags})
+                    if url: img_data.append({"url": url, "date": date_str, "schedules": schedules})
     except Exception as e:
         st.error(f"데이터 로드 실패: {e}")
     return img_data
 
-st.markdown("<h1 class='main-title'>Archive</h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-title'>(  •  ³  •  ) 성찬이의 모든 순간을 기록합니다</p>", unsafe_allow_html=True)
+st.title("Archive (  •  ³  •  )")
 
-data = get_data()
+with st.spinner('로딩 중...'):
+    data = get_data()
 
-# 사이드바: 필터 및 랜덤 기능
+# 사이드바: 필터 기능
 with st.sidebar:
-    st.header("⚙️ Filter & Menu")
-    if st.button("🎲 오늘의 성찬 (Random)"):
-        st.session_state.random_img = random.choice(data)['url'] if data else None
-    
-    all_tags = sorted(list(set([tag for item in data for tag in item['tags']])))
-    selected_tag = st.selectbox("🏷️ 카테고리 필터", ["전체"] + all_tags)
+    st.header("🔍 Filter")
+    all_schedules = sorted(list(set([s for item in data for s in item['schedules']])))
+    selected_schedule = st.selectbox("📅 스케줄별 보기", ["전체"] + all_schedules)
 
-# 1. 랜덤 이미지 팝업 (가장 상단)
-if "random_img" in st.session_state and st.session_state.random_img:
-    st.info("🎲 오늘의 랜덤 성찬!")
-    st.image(st.session_state.random_img, use_container_width=True)
-    if st.button("닫기"):
-        st.session_state.random_img = None
-        st.rerun()
-
-# 2. 달력 필터
+# 1. 달력 필터
 state = calendar(options={"contentHeight": 350, "selectable": True})
 
-# 3. 사진 표시 로직
+# 2. 사진 표시 로직
 display_data = data
 
-# 태그 필터 적용
-if selected_tag != "전체":
-    display_data = [d for d in display_data if selected_tag in d['tags']]
+# 스케줄 필터 적용
+if selected_schedule != "전체":
+    display_data = [d for d in display_data if selected_schedule in d['schedules']]
 
 # 날짜 필터 적용
-title_text = f"🖼️ {selected_tag} 사진"
+title_text = f"🖼️ {selected_schedule} 사진"
 if state.get("callback") == "dateClick":
     click_date = (datetime.strptime(state["dateClick"]["date"].split("T")[0], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     display_data = [d for d in display_data if d['date'] == click_date]
@@ -91,12 +99,12 @@ if state.get("callback") == "dateClick":
 
 st.markdown(f"### {title_text} ({len(display_data)}장)")
 
-# 4. 바둑판 그리드 (라이트박스 효과 포함)
+# 3. 바둑판 그리드
 if display_data:
     cols = st.columns(3)
     for idx, item in enumerate(display_data):
         with cols[idx % 3]:
-            # 캡션에 날짜 표시
-            st.image(item['url'], caption=item['date'] if selected_tag != "전체" else "", use_container_width=True)
+            # 사진 아래 날짜를 캡션으로 표시
+            st.image(item['url'], caption=item['date'], use_container_width=True)
 else:
-    st.warning("일치하는 사진이 없습니다.")
+    st.warning("해당 조건의 사진이 없습니다.")
