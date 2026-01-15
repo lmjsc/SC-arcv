@@ -9,23 +9,33 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Archive", layout="centered")
 
-# [핵심] 버튼을 양사이드로 밀어내는 커스텀 CSS
+# [핵심] 가로 한 줄 강제 고정 및 버튼 크기 축소 CSS
 st.markdown("""
     <style>
-    /* 버튼 컨테이너를 한 줄로 고정하고 양 끝으로 배치 */
-    .button-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-        width: 100%;
+    /* 전체 컨트롤 컨테이너 */
+    .nav-wrapper {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        margin: 10px 0 !important;
     }
-    /* 버튼 스타일 조정 */
+    /* 버튼 크기 대폭 축소 */
     .stButton button {
-        width: 60px !important;
-        height: 40px !important;
-        padding: 0px !important;
-        border-radius: 8px;
+        width: 50px !important;
+        height: 35px !important;
+        min-width: 50px !important;
+        padding: 0 !important;
+        font-size: 14px !important;
+        border-radius: 20px !important;
+    }
+    /* 숫자 텍스트 중앙 정렬 */
+    .count-text {
+        font-size: 16px;
+        font-weight: bold;
+        flex-grow: 1;
+        text-align: center;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -53,7 +63,7 @@ def get_data():
 
 st.title("Archive")
 
-with st.spinner('사진 불러오는 중...'):
+with st.spinner('로딩 중...'):
     data = get_data()
 
 calendar_options = {
@@ -80,20 +90,21 @@ if state.get("callback") == "dateClick":
         current_idx = st.session_state[f"idx_{selected_date}"]
         total_count = len(filtered_imgs)
 
-        # HTML과 Streamlit 버튼을 조합하여 양사이드 배치 구현
-        col_l, col_m, col_r = st.columns([1, 2, 1])
+        # [수정] 컬럼 대신 한 줄에 배치되도록 버튼 구조 변경
+        # Streamlit 컬럼은 폰에서 깨지기 쉬워 커스텀 레이아웃 적용
+        col_prev, col_text, col_next = st.columns([1, 2, 1])
         
-        with col_l:
+        with col_prev:
             if st.button("⬅️", key="prev"):
                 st.session_state[f"idx_{selected_date}"] = (current_idx - 1) % total_count
                 st.rerun()
         
-        with col_m:
-            st.markdown(f"<p style='text-align: center; font-size: 18px; margin-top: 5px;'><b>{current_idx + 1} / {total_count}</b></p>", unsafe_allow_html=True)
+        with col_text:
+            st.markdown(f"<div class='count-text'>{current_idx + 1} / {total_count}</div>", unsafe_allow_html=True)
             
-        with col_r:
-            # 버튼이 오른쪽 끝으로 붙도록 배치
-            st.markdown("<div style='text-align: right;'>", unsafe_allow_html=True)
+        with col_next:
+            # 오른쪽 정렬을 위해 div로 한 번 더 감쌈
+            st.markdown("<div style='display: flex; justify-content: flex-end;'>", unsafe_allow_html=True)
             if st.button("➡️", key="next"):
                 st.session_state[f"idx_{selected_date}"] = (current_idx + 1) % total_count
                 st.rerun()
