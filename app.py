@@ -10,36 +10,27 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Archive", layout="centered")
 
-# [핵심] 테이블 레이아웃 및 버튼 스타일 CSS
+# [핵심] 모바일에서 절대 줄바꿈 되지 않는 강제 가로 테이블 CSS
 st.markdown("""
     <style>
-    .nav-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 10px 0;
-    }
-    .nav-td {
-        width: 33.33%;
-        text-align: center;
-        vertical-align: middle;
-    }
-    /* 버튼처럼 보이게 하는 스타일 */
-    .nav-btn {
-        display: inline-block;
-        padding: 5px 15px;
-        background-color: #f0f2f6;
-        border-radius: 5px;
-        text-decoration: none;
-        color: black;
-        font-weight: bold;
-        border: 1px solid #dcdfe6;
-        cursor: pointer;
-    }
-    /* Streamlit 기본 버튼 간격 제거 */
+    /* 기본 컬럼 디자인 무력화 */
     [data-testid="column"] {
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        flex: 1 1 0% !important;
+        min-width: 0px !important;
+    }
+    /* 버튼 내부 텍스트 및 레이아웃 강제 고정 */
+    .stButton button {
+        width: 100% !important;
+        padding: 0px !important;
+        height: 45px !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+    /* 버튼 사이의 간격 최소화 */
+    [data-testid="stHorizontalBlock"] {
+        gap: 0.5rem !important;
+        flex-wrap: nowrap !important; /* 줄바꿈 방지 핵심 */
     }
     </style>
     """, unsafe_allow_html=True)
@@ -54,7 +45,6 @@ def get_data():
             props = page.get('properties', {})
             date_info = props.get('날짜', {}).get('date')
             date_str = date_info.get('start') if date_info else None
-            
             blocks = notion.blocks.children.list(block_id=page_id).get("results")
             for block in blocks:
                 if block["type"] == "image":
@@ -66,15 +56,13 @@ def get_data():
     return img_data
 
 st.title("Archive")
-
-with st.spinner('Loading...'):
-    data = get_data()
+data = get_data()
 
 state = calendar(options={"contentHeight": 350, "selectable": True})
 
 if state.get("callback") == "dateClick":
     selected_date = state["dateClick"]["date"].split("T")[0]
-    # KST 보정
+    # KST 보정 (선택한 날짜 다음날로 인식되는 문제 해결)
     selected_date = (datetime.strptime(selected_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     
     st.markdown("---")
@@ -87,19 +75,18 @@ if state.get("callback") == "dateClick":
         curr = st.session_state[f"idx_{selected_date}"]
         total = len(filtered_imgs)
 
-        # ⭐️ 여기서부터 테이블 레이아웃 ⭐️
-        # st.columns의 gap을 0으로 만들어 가로 한 줄 강제 유지
-        c1, c2, c3 = st.columns([1, 1, 1])
+        # ⭐️ flex-wrap: nowrap 을 적용한 강제 한 줄 레이아웃 ⭐️
+        c1, c2, c3 = st.columns([1, 2, 1])
         
         with c1:
-            if st.button("⬅️", key="p", use_container_width=True):
+            if st.button("⬅️", key="p_btn"):
                 st.session_state[f"idx_{selected_date}"] = (curr - 1) % total
                 st.rerun()
         with c2:
-            # 숫자를 버튼들과 수평이 맞게 div로 감싸서 출력
-            st.markdown(f"<div style='line-height:40px; font-weight:bold; text-align:center;'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
+            # 중앙 숫자를 버튼 높이와 맞추기 위해 45px 높이 고정
+            st.markdown(f"<div style='height:45px; display:flex; justify-content:center; align-items:center; font-weight:bold;'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
         with c3:
-            if st.button("➡️", key="n", use_container_width=True):
+            if st.button("➡️", key="n_btn"):
                 st.session_state[f"idx_{selected_date}"] = (curr + 1) % total
                 st.rerun()
 
