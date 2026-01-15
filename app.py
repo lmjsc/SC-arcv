@@ -1,7 +1,6 @@
 import streamlit as st
 from notion_client import Client
 from streamlit_calendar import calendar
-from datetime import datetime, timedelta
 
 # 1. 설정값 가져오기
 NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
@@ -31,41 +30,21 @@ st.title("성찬 갤러리 (  •  ³  •  )")
 
 data = get_data()
 
-calendar_options = {
-    "contentHeight": 400,
-    "initialView": "dayGridMonth",
-    "selectable": True,
-    "headerToolbar": {
-        "left": "prev,next",
-        "center": "title",
-        "right": "today",
-    },
-}
+# [테스트용] 노션에서 가져온 날짜들이 어떤 모양인지 화면에 보여줍니다
+all_dates = list(set([item['date'] for item in data if item['date']]))
+st.write(f"현재 노션에 등록된 날짜들: {all_dates}")
 
+calendar_options = {"contentHeight": 400, "selectable": True}
 state = calendar(options=calendar_options)
 
-# 2. 날짜 클릭 이벤트 처리 (보정 로직 추가)
 if state.get("callback") == "dateClick":
-    # 클릭한 날짜를 가져옴
-    clicked_date_str = state["dateClick"]["date"].split("T")[0]
+    # 보정 없이 클릭한 날짜 그대로 가져오기
+    selected_date = state["dateClick"]["date"].split("T")[0]
+    st.markdown(f"### 📅 클릭한 날짜: {selected_date}")
     
-    # [핵심] 하루가 밀리는 현상을 해결하기 위해 1일을 더해줍니다.
-    clicked_date_obj = datetime.strptime(clicked_date_str, "%Y-%m-%d")
-    corrected_date_obj = clicked_date_obj + timedelta(days=1)
-    selected_date = corrected_date_obj.strftime("%Y-%m-%d")
-    
-    st.markdown(f"### 📅 {selected_date} 사진첩")
-    
-    # 노션 데이터와 비교 (문자열 대 문자열 비교)
     filtered_imgs = [item['url'] for item in data if item['date'] == selected_date]
     
     if filtered_imgs:
-        if len(filtered_imgs) > 1:
-            idx = st.select_slider(f"총 {len(filtered_imgs)}장", options=range(len(filtered_imgs)), key="img_slider")
-            st.image(filtered_imgs[idx], use_container_width=True)
-        else:
-            st.image(filtered_imgs[0], use_container_width=True)
+        st.image(filtered_imgs[0], use_container_width=True)
     else:
-        st.info(f"{selected_date}에 등록된 사진이 없습니다. 노션 날짜를 확인해 보세요!")
-else:
-    st.info("날짜를 누르면 해당 날짜의 성찬이 사진이 나옵니다!")
+        st.info(f"이 날짜({selected_date})와 일치하는 사진이 데이터에 없어요.")
