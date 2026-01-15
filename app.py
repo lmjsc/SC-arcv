@@ -72,18 +72,35 @@ def get_all_data():
         has_more = res_g.get("has_more")
         next_cursor = res_g.get("next_cursor")
 
+# 2. 스케줄 데이터 전체 수집 (Pagination 적용)
     s_events = []
     has_more_s = True
     next_cursor_s = None
+    
     while has_more_s:
-        res_s = notion.databases.query(database_id=SCHEDULE_DB_ID, start_cursor=next_cursor_s)
+        res_s = notion.databases.query(
+            database_id=SCHEDULE_DB_ID,
+            start_cursor=next_cursor_s
+        )
         for page in res_s.get("results"):
             props = page.get('properties', {})
-            title = props.get('스케줄명', {}).get('title', [{}])[0].get('plain_text', '제목없음')
+            title_list = props.get('스케줄명', {}).get('title', [])
+            title = title_list[0].get('plain_text', '제목없음') if title_list else '제목없음'
             is_off = props.get('오프라인', {}).get('formula', {}).get('boolean', False)
+            
+            # --- 시작일과 종료일을 모두 가져오도록 수정 ---
             date_info = props.get('날짜', {}).get('date', {})
             if is_off and date_info:
-                s_events.append({"title": title, "start": date_info.get('start'), "color": "#7aa2f7", "extendedProps": {"date": date_info.get('start')}})
+                start_val = date_info.get('start')
+                end_val = date_info.get('end') # 노션에서 설정한 종료일 가져오기
+                
+                s_events.append({
+                    "title": title, 
+                    "start": start_val, 
+                    "end": end_val if end_val else start_val, # 종료일이 없으면 시작일과 같게
+                    "color": "#7aa2f7", 
+                    "extendedProps": {"date": start_val}
+                })
         has_more_s = res_s.get("has_more")
         next_cursor_s = res_s.get("next_cursor")
     return g_data, s_events
@@ -150,4 +167,5 @@ else:
     for idx, item in enumerate(display_data):
         with cols[idx % 3]:
             st.image(item['url'], caption=item['date'], use_container_width=True)
+
 
