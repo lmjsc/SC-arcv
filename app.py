@@ -11,7 +11,7 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Sungchan Archive 🦌", page_icon="🦌", layout="wide")
 
-# [디자인] 사이드바 시인성 및 다크 테마 CSS
+# [디자인] 사용자님 기존 CSS 유지
 st.markdown("""
     <style>
     .stApp { background-color: #1a1b26; color: #a9b1d6; }
@@ -25,52 +25,83 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# [데이터 로드] 캐시 60초 설정
+# [데이터 로드] 100장 제한 해제(Pagination) 및 중복 제거
 @st.cache_data(ttl=60)
 def get_all_data():
-    res_g = notion.databases.query(database_id=GALLERY_DB_ID).get("results")
+    # 1. 갤러리 데이터 전체 수집
     g_data = []
-    for page in res_g:
-        props = page.get('properties', {})
-        date = props.get('날짜', {}).get('date', {}).get('start') or "날짜미상"
-        s_tags = props.get('스케줄', {}).get('multi_select', [])
-        t_tags = props.get('tag', {}).get('multi_select', [])
-        tags_list = [s['name'] for s in s_tags] + [t['name'] for t in t_tags]
-        search_text = " ".join(tags_list).lower()
-        
-        img_urls = []
-        # 파일 열에서 추출
-        for p_val in props.values():
-            if p_val.get('type') == 'files':
-                for f in p_val.get('files', []):
-                    url = f.get('file', {}).get('url') or f.get('external', {}).get('url')
-                    if url: img_urls.append(url)
-        # 본문 블록에서 추출
-        blocks = notion.blocks.children.list(block_id=page['id']).get("results")
-        for block in blocks:
-            if block["type"] == "image":
-                url = block["image"].get('file', {}).get('url') or block["image"].get('external', {}).get('url')
-                if url: img_urls.append(url)
-        
-        for final_url in list(set(img_urls)):
-            g_data.append({"url": final_url, "date": date, "tags": tags_list, "search_text": search_text})
+    has_more = True
+    next_cursor = None
     
-    res_s = notion.databases.query(database_id=SCHEDULE_DB_ID).get("results")
+    while has_more:
+        res_g = notion.databases.query(
+            database_id=GALLERY_DB_ID,
+            start_cursor=next_cursor
+        )
+        
+        for page in res_g.get("results"):
+            props = page.get('properties', {})
+            date = props.get('날짜', {}).get('date', {}).get('start') or "날짜미상"
+            s_tags = props.get('스케줄', {}).get('multi_select', [])
+            t_tags = props.get('tag', {}).get('multi_select', [])
+            tags_list = [s['name'] for s in s_tags] + [t['name'] for t in t_tags]
+            search_text = " ".join(tags_list).lower()
+            
+            img_urls = set() # 한 페이지 내 중복 URL 방지
+            
+            # 파일 열 확인
+            for p_val in props.values():
+                if p_val.get('type') == 'files':
+                    for f in p_val.get('files', []):
+                        u = f.get('file', {}).get('url') or f.get('external', {}).get('url')
+                        if u: img_urls.add(u)
+            
+            # 본문 블록 확인
+            blocks = notion.blocks.children.list(block_id=page['id']).get("results")
+            for block in blocks:
+                if block["type"] == "image":
+                    u = block["image"].get('file', {}).get('url') or block["image"].get('external', {}).get('url')
+                    if u: img_urls.add(u)
+            
+            for final_url in img_urls:
+                g_data.append({"url": final_url, "date": date, "tags": tags_list, "search_text": search_text})
+        
+        has_more = res_g.get("has_more")
+        next_cursor = res_g.get("next_cursor")
+
+    # 2. 스케줄 데이터 전체 수집
     s_events = []
-    for page in res_s:
-        props = page.get('properties', {})
-        title_list = props.get('스케줄명', {}).get('title', [])
-        title = title_list[0].get('plain_text', '제목없음') if title_list else '제목없음'
-        is_off = props.get('오프라인', {}).get('formula', {}).get('boolean', False)
-        date_info = props.get('날짜', {}).get('date', {})
-        if is_off and date_info:
-            s_events.append({"title": title, "start": date_info.get('start'), "end": date_info.get('end'), "color": "#7aa2f7", "extendedProps": {"date": date_info.get('start')}})
+    has_more_s = True
+    next_cursor_s = None
+    
+    while has_more_s:
+        res_s = notion.databases.query(
+            database_id=SCHEDULE_DB_ID,
+            start_cursor=next_cursor_s
+        )
+        for page in res_s.get("results"):
+            props = page.get('properties', {})
+            title_list = props.get('스케줄명', {}).get('title', [])
+            title = title_list[0].get('plain_text', '제목없음') if title_list else '제목없음'
+            is_off = props.get('오프라인', {}).get('formula', {}).get('boolean', False)
+            date_info = props.get('날짜', {}).get('date', {})
+            if is_off and date_info:
+                s_events.append({
+                    "title": title, 
+                    "start": date_info.get('start'), 
+                    "end": date_info.get('end'), 
+                    "color": "#7aa2f7", 
+                    "extendedProps": {"date": date_info.get('start')}
+                })
+        has_more_s = res_s.get("has_more")
+        next_cursor_s = res_s.get("next_cursor")
+
     return g_data, s_events
 
 with st.spinner('🦌 성찬이 불러오는 중...'):
     gallery_data, schedule_events = get_all_data()
 
-# 사이드바
+# 사이드바 구성
 with st.sidebar:
     st.markdown("<h2 style='text-align: center;'>🦌 Sungchan Menu</h2>", unsafe_allow_html=True)
     if st.button("🔄 데이터 강제 새로고침"):
@@ -83,23 +114,21 @@ with st.sidebar:
     sel_year = st.selectbox("📅 연도 선택", ["전체"] + years)
     show_only_star = st.checkbox("⭐ Favorite SC")
 
-# 공통 필터링
+# 필터링
 filtered_gallery = gallery_data
 if show_only_star: filtered_gallery = [d for d in filtered_gallery if "⭐" in d['tags']]
 if sel_year != "전체": filtered_gallery = [d for d in filtered_gallery if d['date'].startswith(sel_year)]
 if search_query: filtered_gallery = [d for d in filtered_gallery if search_query in d['search_text']]
 
+# 페이지 출력부
 if menu == "📅 스케줄 달력":
     st.title("Sungchan Schedule 🗓️")
     sched_state = calendar(events=schedule_events, options={"contentHeight": 650, "initialView": "dayGridMonth", "locale": "en"})
     if sched_state.get("callback") == "eventClick":
         st.query_params["date"] = sched_state["eventClick"]["event"]["extendedProps"]["date"]
         st.rerun()
-
 else:
     st.title("Archive (  •  ³  •  )")
-    
-    # --- 갤러리 상단 날짜 선택 캘린더 복구 ---
     query_date = st.query_params.get("date")
     cal_state = calendar(options={"contentHeight": 350, "selectable": True, "locale": "en"})
     
@@ -107,7 +136,6 @@ else:
     active_date = None
     
     if cal_state.get("callback") == "dateClick":
-        # 클릭한 날짜 가져오기 (시간차 보정 +1일)
         active_date = (datetime.strptime(cal_state["dateClick"]["date"].split("T")[0], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
         st.query_params.clear()
     elif query_date:
@@ -119,7 +147,6 @@ else:
     else:
         st.subheader(f"🖼️ 전체 결과 ({len(display_data)}장)")
 
-    # 사진 그리드 출력
     if not display_data:
         st.info("해당 조건에 맞는 사진이 없습니다. 🦌")
     else:
@@ -127,4 +154,3 @@ else:
         for idx, item in enumerate(display_data):
             with cols[idx % 3]:
                 st.image(item['url'], caption=item['date'], use_container_width=True)
-
