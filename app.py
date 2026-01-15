@@ -67,7 +67,7 @@ def get_all_data():
             s_events.append({"title": title, "start": date_info.get('start'), "end": date_info.get('end'), "color": "#7aa2f7", "extendedProps": {"date": date_info.get('start')}})
     return g_data, s_events
 
-with st.spinner('🦌 성찬이 데이터 동기화 중...'):
+with st.spinner('🦌 성찬이 불러오는 중...'):
     gallery_data, schedule_events = get_all_data()
 
 # 사이드바
@@ -81,7 +81,7 @@ with st.sidebar:
     search_query = st.text_input("🔍 착장 검색 (안경, 공항 등)", "").lower()
     years = sorted(list(set([d['date'].split('-')[0] for d in gallery_data if d['date'] != "날짜미상"])), reverse=True)
     sel_year = st.selectbox("📅 연도 선택", ["전체"] + years)
-    show_only_star = st.checkbox("⭐ 레전드만 보기")
+    show_only_star = st.checkbox("⭐ Favorite SC")
 
 # 공통 필터링
 filtered_gallery = gallery_data
@@ -127,3 +127,4 @@ else:
         for idx, item in enumerate(display_data):
             with cols[idx % 3]:
                 st.image(item['url'], caption=item['date'], use_container_width=True)
+
