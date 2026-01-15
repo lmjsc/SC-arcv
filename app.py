@@ -10,37 +10,28 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Archive", layout="centered")
 
-# [핵심] 모바일/PC 통합 가로 한 줄 고정 CSS
+# [핵심] 두 줄 레이아웃 전용 스타일
 st.markdown("""
     <style>
-    /* 1. 컬럼이 세로로 쌓이는 현상 방지 */
-    [data-testid="column"] {
-        flex: 1 1 0% !important;
-        min-width: 0px !important;
-    }
-    /* 2. 전체적인 간격 조정 및 한 줄 유지 */
-    [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 10px !important;
-        width: 100% !important;
-    }
-    /* 3. 버튼 크기 및 텍스트 정렬 */
+    /* 버튼을 가로로 꽉 차게 */
     .stButton button {
         width: 100% !important;
-        height: 40px !important;
-        padding: 0px !important;
-        border-radius: 10px !important;
+        height: 50px !important;
+        font-size: 20px !important;
+        border-radius: 12px !important;
+        margin-bottom: 5px !important;
     }
-    /* 4. 숫자 텍스트 중앙 정렬 */
+    /* 숫자 텍스트 스타일 */
     .nav-text {
         text-align: center;
         font-weight: bold;
-        white-space: nowrap;
-        font-size: 16px;
+        font-size: 18px;
+        margin: 10px 0;
+        color: #555;
+    }
+    /* 간격 조정 */
+    [data-testid="column"] {
+        padding: 0 5px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -72,7 +63,6 @@ state = calendar(options={"contentHeight": 350, "selectable": True})
 
 if state.get("callback") == "dateClick":
     selected_date = state["dateClick"]["date"].split("T")[0]
-    # KST 보정
     selected_date = (datetime.strptime(selected_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     
     st.markdown("---")
@@ -85,20 +75,16 @@ if state.get("callback") == "dateClick":
         curr = st.session_state[f"idx_{selected_date}"]
         total = len(filtered_imgs)
 
-        # ⭐️ 폰에서도 컴에서도 절대 안 깨지는 1:1:1 비율 레이아웃 ⭐️
-        c1, c2, c3 = st.columns([1, 1, 1])
-        
-        with c1:
-            if st.button("⬅️", key="p_btn"):
+        # ⭐️ 1층: 이전/다음 버튼 (가로 2칸)
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            if st.button("⬅️ 이전", key="p_btn"):
                 st.session_state[f"idx_{selected_date}"] = (curr - 1) % total
                 st.rerun()
-        with c2:
-            st.markdown(f"<div class='nav-text'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
-        with c3:
-            if st.button("➡️", key="n_btn"):
+        with btn_col2:
+            if st.button("다음 ➡️", key="n_btn"):
                 st.session_state[f"idx_{selected_date}"] = (curr + 1) % total
                 st.rerun()
 
-        st.image(filtered_imgs[st.session_state[f"idx_{selected_date}"]], use_container_width=True)
-    else:
-        st.info(f"{selected_date} 사진이 없습니다.")
+        # ⭐️ 2층: 숫자 표시 (단독 줄)
+        st.markdown(f"<div class='nav-text'>{curr + 1} / {total
