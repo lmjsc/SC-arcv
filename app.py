@@ -10,27 +10,37 @@ notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Archive", layout="centered")
 
-# [핵심] 모바일에서 절대 줄바꿈 되지 않는 강제 가로 테이블 CSS
+# [핵심] 모바일/PC 통합 가로 한 줄 고정 CSS
 st.markdown("""
     <style>
-    /* 기본 컬럼 디자인 무력화 */
+    /* 1. 컬럼이 세로로 쌓이는 현상 방지 */
     [data-testid="column"] {
         flex: 1 1 0% !important;
         min-width: 0px !important;
     }
-    /* 버튼 내부 텍스트 및 레이아웃 강제 고정 */
+    /* 2. 전체적인 간격 조정 및 한 줄 유지 */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+    /* 3. 버튼 크기 및 텍스트 정렬 */
     .stButton button {
         width: 100% !important;
+        height: 40px !important;
         padding: 0px !important;
-        height: 45px !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
+        border-radius: 10px !important;
     }
-    /* 버튼 사이의 간격 최소화 */
-    [data-testid="stHorizontalBlock"] {
-        gap: 0.5rem !important;
-        flex-wrap: nowrap !important; /* 줄바꿈 방지 핵심 */
+    /* 4. 숫자 텍스트 중앙 정렬 */
+    .nav-text {
+        text-align: center;
+        font-weight: bold;
+        white-space: nowrap;
+        font-size: 16px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -62,7 +72,7 @@ state = calendar(options={"contentHeight": 350, "selectable": True})
 
 if state.get("callback") == "dateClick":
     selected_date = state["dateClick"]["date"].split("T")[0]
-    # KST 보정 (선택한 날짜 다음날로 인식되는 문제 해결)
+    # KST 보정
     selected_date = (datetime.strptime(selected_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     
     st.markdown("---")
@@ -75,16 +85,15 @@ if state.get("callback") == "dateClick":
         curr = st.session_state[f"idx_{selected_date}"]
         total = len(filtered_imgs)
 
-        # ⭐️ flex-wrap: nowrap 을 적용한 강제 한 줄 레이아웃 ⭐️
-        c1, c2, c3 = st.columns([1, 2, 1])
+        # ⭐️ 폰에서도 컴에서도 절대 안 깨지는 1:1:1 비율 레이아웃 ⭐️
+        c1, c2, c3 = st.columns([1, 1, 1])
         
         with c1:
             if st.button("⬅️", key="p_btn"):
                 st.session_state[f"idx_{selected_date}"] = (curr - 1) % total
                 st.rerun()
         with c2:
-            # 중앙 숫자를 버튼 높이와 맞추기 위해 45px 높이 고정
-            st.markdown(f"<div style='height:45px; display:flex; justify-content:center; align-items:center; font-weight:bold;'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='nav-text'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
         with c3:
             if st.button("➡️", key="n_btn"):
                 st.session_state[f"idx_{selected_date}"] = (curr + 1) % total
