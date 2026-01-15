@@ -44,7 +44,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=10800)
 def get_all_data():
     g_data = []
     has_more = True
@@ -150,3 +150,4 @@ else:
     for idx, item in enumerate(display_data):
         with cols[idx % 3]:
             st.image(item['url'], caption=item['date'], use_container_width=True)
+
