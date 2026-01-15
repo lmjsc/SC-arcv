@@ -3,37 +3,43 @@ from notion_client import Client
 from streamlit_calendar import calendar
 from datetime import datetime, timedelta
 
+# 1. 설정 및 노션 연결
 NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
 DATABASE_ID = st.secrets["DATABASE_ID"]
 notion = Client(auth=NOTION_TOKEN)
 
 st.set_page_config(page_title="Archive", layout="centered")
 
-# [핵심] 모바일에서도 절대 깨지지 않는 테이블 레이아웃 CSS
+# [핵심] 테이블 레이아웃 및 버튼 스타일 CSS
 st.markdown("""
     <style>
-    /* 컬럼 컨테이너 자체를 무조건 가로 정렬(Flex)로 고정 */
+    .nav-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+    }
+    .nav-td {
+        width: 33.33%;
+        text-align: center;
+        vertical-align: middle;
+    }
+    /* 버튼처럼 보이게 하는 스타일 */
+    .nav-btn {
+        display: inline-block;
+        padding: 5px 15px;
+        background-color: #f0f2f6;
+        border-radius: 5px;
+        text-decoration: none;
+        color: black;
+        font-weight: bold;
+        border: 1px solid #dcdfe6;
+        cursor: pointer;
+    }
+    /* Streamlit 기본 버튼 간격 제거 */
     [data-testid="column"] {
-        width: calc(33% - 1rem) !important;
-        flex: 1 1 calc(33% - 1rem) !important;
-        min-width: 33% !important;
-    }
-    
-    /* 버튼 크기 및 중앙 정렬 */
-    .stButton button {
-        width: 100% !important;
-        padding: 5px 0 !important;
-        border-radius: 10px !important;
-    }
-    
-    /* 숫자 텍스트 수직 중앙 정렬 */
-    .num-text {
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 40px;
-        font-weight: bold;
-        font-size: 16px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -48,6 +54,7 @@ def get_data():
             props = page.get('properties', {})
             date_info = props.get('날짜', {}).get('date')
             date_str = date_info.get('start') if date_info else None
+            
             blocks = notion.blocks.children.list(block_id=page_id).get("results")
             for block in blocks:
                 if block["type"] == "image":
@@ -59,13 +66,15 @@ def get_data():
     return img_data
 
 st.title("Archive")
-data = get_data()
+
+with st.spinner('Loading...'):
+    data = get_data()
 
 state = calendar(options={"contentHeight": 350, "selectable": True})
 
 if state.get("callback") == "dateClick":
     selected_date = state["dateClick"]["date"].split("T")[0]
-    # 날짜 보정 (KST 대응)
+    # KST 보정
     selected_date = (datetime.strptime(selected_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     
     st.markdown("---")
@@ -78,18 +87,19 @@ if state.get("callback") == "dateClick":
         curr = st.session_state[f"idx_{selected_date}"]
         total = len(filtered_imgs)
 
-        # 3칸을 나누어 강제 가로 배치
-        c1, c2, c3 = st.columns(3)
+        # ⭐️ 여기서부터 테이블 레이아웃 ⭐️
+        # st.columns의 gap을 0으로 만들어 가로 한 줄 강제 유지
+        c1, c2, c3 = st.columns([1, 1, 1])
         
         with c1:
-            if st.button("⬅️", key="p"):
+            if st.button("⬅️", key="p", use_container_width=True):
                 st.session_state[f"idx_{selected_date}"] = (curr - 1) % total
                 st.rerun()
         with c2:
-            # 칸 안에서 텍스트를 수직/수평 중앙 정렬
-            st.markdown(f"<div class='num-text'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
+            # 숫자를 버튼들과 수평이 맞게 div로 감싸서 출력
+            st.markdown(f"<div style='line-height:40px; font-weight:bold; text-align:center;'>{curr + 1} / {total}</div>", unsafe_allow_html=True)
         with c3:
-            if st.button("➡️", key="n"):
+            if st.button("➡️", key="n", use_container_width=True):
                 st.session_state[f"idx_{selected_date}"] = (curr + 1) % total
                 st.rerun()
 
