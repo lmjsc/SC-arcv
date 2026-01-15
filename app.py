@@ -1,6 +1,7 @@
 import streamlit as st
 from notion_client import Client
 from streamlit_calendar import calendar
+from datetime import datetime, timedelta
 
 # 1. 설정값 가져오기
 NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
@@ -30,21 +31,47 @@ st.title("성찬 갤러리 (  •  ³  •  )")
 
 data = get_data()
 
-# [테스트용] 노션에서 가져온 날짜들이 어떤 모양인지 화면에 보여줍니다
-all_dates = list(set([item['date'] for item in data if item['date']]))
-st.write(f"현재 노션에 등록된 날짜들: {all_dates}")
+# 달력 설정
+calendar_options = {
+    "contentHeight": 400,
+    "selectable": True,
+    "headerToolbar": {
+        "left": "prev,next",
+        "center": "title",
+        "right": "today",
+    },
+}
 
-calendar_options = {"contentHeight": 400, "selectable": True}
 state = calendar(options=calendar_options)
 
+# 2. 날짜 클릭 이벤트 처리 (강력한 보정 로직)
 if state.get("callback") == "dateClick":
-    # 보정 없이 클릭한 날짜 그대로 가져오기
-    selected_date = state["dateClick"]["date"].split("T")[0]
-    st.markdown(f"### 📅 클릭한 날짜: {selected_date}")
+    # 1. 클릭한 시각 문자열 가져오기 (예: "2026-01-03T15:00:00.000Z")
+    click_raw = state["dateClick"]["date"]
     
+    # 2. 날짜 객체로 변환
+    # T 이후를 떼고 변환하거나, 아예 시각 정보를 포함해 변환
+    click_dt = datetime.fromisoformat(click_raw.replace("Z", "+00:00"))
+    
+    # 3. [핵심] 12시간을 더해서 한국 시간대 기준으로 날짜가 넘어가게 보정
+    # 4일을 눌렀는데 3일 밤으로 인식된다면, 12시간을 더하면 안전하게 4일이 됩니다.
+    corrected_dt = click_dt + timedelta(hours=12)
+    selected_date = corrected_dt.strftime("%Y-%m-%d")
+    
+    st.markdown(f"### 📅 선택한 날짜: {selected_date}")
+    
+    # 노션 데이터와 비교
     filtered_imgs = [item['url'] for item in data if item['date'] == selected_date]
     
     if filtered_imgs:
-        st.image(filtered_imgs[0], use_container_width=True)
+        if len(filtered_imgs) > 1:
+            idx = st.select_slider(f"총 {len(filtered_imgs)}장", options=range(len(filtered_imgs)))
+            st.image(filtered_imgs[idx], use_container_width=True)
+        else:
+            st.image(filtered_imgs[0], use_container_width=True)
     else:
-        st.info(f"이 날짜({selected_date})와 일치하는 사진이 데이터에 없어요.")
+        # 디버깅용: 노션에 있는 날짜 목록 출력
+        available_dates = list(set([item['date'] for item in data if item['date']]))
+        st.info(f"{selected_date}에 사진이 없어요. (현재 등록된 날짜: {available_dates})")
+else:
+    st.info("달력에서 날짜를 누르면 사진이 나옵니다!")
