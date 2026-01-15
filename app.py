@@ -105,5 +105,6 @@ if display_data:
         with cols[idx % 3]:
             st.image(item['url'], caption=item['date'], use_container_width=True)
 else:
-    st.warning("찾으시는 조건의 사진이 없습니다.")
+    st.warning("Unknown Sungchan..")
+
 
