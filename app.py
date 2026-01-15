@@ -19,7 +19,7 @@ st.markdown("""
     }
     table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: collapse;display:inline;
     }
     td {
         vertical-align: middle;
@@ -92,3 +92,4 @@ if state.get("callback") == "dateClick":
         st.image(filtered_imgs[st.session_state[f"idx_{selected_date}"]], use_container_width=True)
     else:
         st.info(f"{selected_date} 사진이 없습니다.")
+
