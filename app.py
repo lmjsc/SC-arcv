@@ -14,29 +14,38 @@ st.set_page_config(page_title="Sungchan Archive 🦌", page_icon="🦌", layout=
 # [보안] 검색 엔진 수집 차단
 st.markdown('<head><meta name="robots" content="noindex, nofollow"></head>', unsafe_allow_html=True)
 
-# [디자인] 버튼 간격 및 시인성 정밀 조정
 st.markdown("""
     <style>
     .stApp { background-color: #1a1b26; color: #a9b1d6; }
     [data-testid="stSidebar"] { background-color: #1f2335 !important; border-right: 1px solid #414868; }
-    [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #ffffff !important; }
     
-    /* 사이드바 버튼 촘촘하게 만들기 */
+    /* [수정] 버튼들이 유동적으로 배치되되 여백을 채우도록 설정 */
+    [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important; /* 공간이 모자라면 아래로 자연스럽게 넘어가게 함 */
+        gap: 8px !important;
+        align-items: center !important;
+    }
+    
+    /* 각 컬럼이 고정 너비가 아닌 콘텐츠에 맞게 늘어나도록 설정 */
+    [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] [data-testid="column"] {
+        width: auto !important;
+        flex: 1 1 auto !important; /* 남는 공간을 버튼들이 나눠 가져서 꽉 채움 */
+        min-width: min-content !important;
+    }
+
     [data-testid="stSidebar"] .stButton button {
-        width: 100%;
-        padding: 4px 8px !important;
-        min-height: 32px !important;
-        height: 32px !important;
+        width: 100% !important;
         background-color: #24283b !important; 
         color: #7aa2f7 !important; 
         border: 1px solid #7aa2f7 !important;
-        font-size: 13px !important;
-        margin-bottom: -10px !important; /* 버튼 사이 세로 간격 축소 */
+        padding: 5px 12px !important;
+        font-size: 14px !important;
+        border-radius: 8px !important;
     }
-    [data-testid="stSidebar"] .stButton button:hover {
-        background-color: #7aa2f7 !important;
-        color: #1a1b26 !important;
-    }
+    </style>
+    """, unsafe_allow_html=True)
     
     /* 이미지 스타일 */
     [data-testid="stImage"] img { border-radius: 12px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; transition: 0.3s; }
@@ -167,5 +176,6 @@ else:
     for idx, item in enumerate(display_data):
         with cols[idx % 3]:
             st.image(item['url'], caption=item['date'], use_container_width=True)
+
 
 
