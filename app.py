@@ -14,27 +14,29 @@ st.set_page_config(page_title="Sungchan Archive 🦌", page_icon="🦌", layout=
 # [보안] 검색 엔진 수집 차단
 st.markdown('<head><meta name="robots" content="noindex, nofollow"></head>', unsafe_allow_html=True)
 
+# [디자인] 모든 스타일을 하나의 따옴표 안에 정리했습니다.
 st.markdown("""
     <style>
     .stApp { background-color: #1a1b26; color: #a9b1d6; }
     [data-testid="stSidebar"] { background-color: #1f2335 !important; border-right: 1px solid #414868; }
+    [data-testid="stSidebar"] label, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #ffffff !important; }
     
-    /* [수정] 버튼들이 유동적으로 배치되되 여백을 채우도록 설정 */
+    /* 버튼 유동적 배치 및 여백 채우기 */
     [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: wrap !important; /* 공간이 모자라면 아래로 자연스럽게 넘어가게 함 */
+        flex-wrap: wrap !important;
         gap: 8px !important;
         align-items: center !important;
     }
     
-    /* 각 컬럼이 고정 너비가 아닌 콘텐츠에 맞게 늘어나도록 설정 */
     [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] [data-testid="column"] {
         width: auto !important;
-        flex: 1 1 auto !important; /* 남는 공간을 버튼들이 나눠 가져서 꽉 채움 */
+        flex: 1 1 auto !important;
         min-width: min-content !important;
     }
 
+    /* 사이드바 버튼 디자인 */
     [data-testid="stSidebar"] .stButton button {
         width: 100% !important;
         background-color: #24283b !important; 
@@ -44,12 +46,26 @@ st.markdown("""
         font-size: 14px !important;
         border-radius: 8px !important;
     }
-    </style>
-    """, unsafe_allow_html=True)
+    [data-testid="stSidebar"] .stButton button:hover {
+        background-color: #7aa2f7 !important;
+        color: #1a1b26 !important;
+    }
+
+    /* 이미지 스타일 */
+    [data-testid="stImage"] img { 
+        border-radius: 12px; 
+        aspect-ratio: 1/1; 
+        object-fit: cover; 
+        border: 2px solid #414868; 
+        transition: 0.3s; 
+    }
+    [data-testid="stImage"] img:hover { 
+        transform: scale(1.02); 
+        border-color: #7aa2f7; 
+    }
     
-/* 이미지 스타일 */
-    [data-testid="stImage"] img { border-radius: 12px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; transition: 0.3s; }
-    [data-testid="stImage"] img:hover { transform: scale(1.02); border-color: #7aa2f7; }
+    /* 캘린더 배경 수정 */
+    iframe { background-color: #24283b !important; border-radius: 15px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -176,6 +192,7 @@ else:
     for idx, item in enumerate(display_data):
         with cols[idx % 3]:
             st.image(item['url'], caption=item['date'], use_container_width=True)
+
 
 
 
