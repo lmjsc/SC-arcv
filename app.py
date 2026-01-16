@@ -47,7 +47,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
     
-    /* 이미지 스타일 */
+/* 이미지 스타일 */
     [data-testid="stImage"] img { border-radius: 12px; aspect-ratio: 1/1; object-fit: cover; border: 2px solid #414868; transition: 0.3s; }
     [data-testid="stImage"] img:hover { transform: scale(1.02); border-color: #7aa2f7; }
     </style>
@@ -176,6 +176,7 @@ else:
     for idx, item in enumerate(display_data):
         with cols[idx % 3]:
             st.image(item['url'], caption=item['date'], use_container_width=True)
+
 
 
 
